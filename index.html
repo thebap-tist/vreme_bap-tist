@@ -790,6 +790,9 @@ try { favs = JSON.parse(localStorage.getItem('sv_f2') || '["Ljubljana"]'); } cat
 const $  = id => document.getElementById(id);
 const p2 = x  => String(x).padStart(2,'0');
 
+// Radar state — mora biti na vrhu ker ga applyTheme ze uporablja
+let radarMap=null, radarLayer=null, radarFrames=[], animPos=0, animTimer=null, playing=false;
+
 // ── THEME ──────────────────────────────────────
 let theme = localStorage.getItem('sv_theme') || 'dark';
 function applyTheme(t) {
@@ -1154,7 +1157,7 @@ function switchView(name, btn) {
 // ═══════════════════════════════════════════════
 // RAINVIEWER RADAR
 // ═══════════════════════════════════════════════
-let radarMap=null, radarLayer=null, radarFrames=[], animPos=0, animTimer=null, playing=false;
+
 
 function initRadar() {
   if (radarMap) { radarMap.invalidateSize(); return; }
