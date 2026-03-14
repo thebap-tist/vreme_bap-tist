@@ -1,2 +1,2 @@
-# vreme_bap-tist/
+# vreme_bap-tist
 vremenska aplikacija
