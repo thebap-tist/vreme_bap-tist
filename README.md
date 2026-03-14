@@ -1,2 +1,2 @@
-# vreme_bap-tist
+# slovreme
 vremenska aplikacija
