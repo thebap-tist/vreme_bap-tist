@@ -873,16 +873,29 @@ function renderFavs() {
 // ═══════════════════════════════════════════════
 async function fetchWeather(name) {
   setLoading(true); clearErr();
+  const c = CITIES.find(x => x.n === name);
+
+  // 1. Open-Meteo TAKOJ — brez CORS, vedno deluje
+  if (c) {
+    const om = await tryOM(c.lat, c.lon);
+    if (om) {
+      setBadge('om');
+      renderOM(om, name);
+      setLoading(false);
+      // 2. V ozadju poskusi ARSO za točnejše podatke
+      tryARSO(name).then(arso => {
+        if (arso) { setBadge('arso'); renderARSO(arso, name); }
+      });
+      return;
+    }
+  }
+
+  // 3. Če Open-Meteo ne dela, poskusi ARSO
   const arso = await tryARSO(name);
   if (arso) {
     setBadge('arso'); renderARSO(arso, name);
   } else {
-    const c = CITIES.find(x => x.n === name);
-    if (c) {
-      const om = await tryOM(c.lat, c.lon);
-      if (om) { setBadge('om'); renderOM(om, name); }
-      else showErr('Ne morem naložiti podatkov. Preveri internet.');
-    }
+    showErr('Ne morem naložiti podatkov. Preveri internetno povezavo.');
   }
   setLoading(false);
 }
@@ -1216,15 +1229,8 @@ function stepFrame(dir) {
 // INIT
 // ═══════════════════════════════════════════════
 renderDDList(); renderFavs(); updateDate();
-
-// Najprej naložimo Open-Meteo vzporedno (hiter fallback)
-const cityObj = CITIES.find(x => x.n === city);
-if (cityObj) tryOM(cityObj.lat, cityObj.lon).then(om => { if (om) { setBadge('om'); renderOM(om, city); setLoading(false); } });
-
-// Potem poskusi ARSO (zamenja podatke če uspe)
 fetchWeather(city);
 
-// Radar: počakaj da je DOM popolnoma narejen in div ima dimenzije
 window.addEventListener('load', () => {
   setTimeout(initRadar, 600);
 });
