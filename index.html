@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SloVreme</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --sky: #152d45; --accent: #f0c040; --green: #4cff90;
+  --text: #e8f0f8; --dim: #6a9ab8;
+  --card: rgba(255,255,255,0.065); --cardh: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.11); --r: 18px;
+}
+body { font-family:'DM Sans',sans-serif; background:var(--sky); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+/* BG */
+.bg { position:fixed;inset:0;z-index:0;background:linear-gradient(155deg,#0a1d2e 0%,#152d45 45%,#1b4060 100%);overflow:hidden; }
+.orb { position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none; }
+.orb.a{width:500px;height:500px;top:-100px;left:-150px;background:rgba(240,192,64,.05)}
+.orb.b{width:600px;height:600px;bottom:-200px;right:-100px;background:rgba(42,96,153,.12)}
+.cs{position:absolute;width:200%;height:80px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 80'%3E%3Cellipse cx='180' cy='55' rx='160' ry='35' fill='rgba(168,200,232,0.03)'/%3E%3Cellipse cx='550' cy='40' rx='200' ry='45' fill='rgba(168,200,232,0.04)'/%3E%3Cellipse cx='950' cy='50' rx='180' ry='38' fill='rgba(168,200,232,0.03)'/%3E%3C/svg%3E") repeat-x;
+  animation:clouds linear infinite}
+.cs.s1{top:30px;animation-duration:70s}.cs.s2{top:5px;animation-duration:42s;opacity:.7}
+@keyframes clouds{to{transform:translateX(-50%)}}
+
+/* LAYOUT */
+.app{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px}
+.logo{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px}
+.logo em{color:var(--accent);font-style:normal}
+.logo-sub{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:1px}
+.clk{text-align:right}
+.ct{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-1px}
+.cd{font-size:11px;color:var(--dim);margin-top:1px}
+
+/* DROPDOWN */
+.dw{position:relative;width:300px}
+.db{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:11px 40px 11px 16px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:15px;
+  font-weight:500;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;
+  transition:background .2s,border-color .2s;position:relative}
+.db:hover,.db.open{background:var(--cardh);border-color:rgba(255,255,255,.2)}
+.chev{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--dim);transition:transform .25s}
+.db.open .chev{transform:translateY(-50%) rotate(180deg)}
+.dp{position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:200;
+  background:#1a3a55;border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);max-height:0;opacity:0;pointer-events:none;
+  transition:max-height .3s ease,opacity .2s ease}
+.dp.open{max-height:380px;opacity:1;pointer-events:all}
+.ds{padding:10px 14px;border-bottom:1px solid var(--border)}
+.ds input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
+.ds input::placeholder{color:var(--dim)}
+.dl{overflow-y:auto;max-height:290px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}
+.di{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;
+  transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04)}
+.di:hover{background:rgba(255,255,255,.07)}
+.di.on{background:rgba(240,192,64,.1)}
+.ir{font-size:11px;color:var(--dim)}
+.sb{background:none;border:none;cursor:pointer;padding:4px;font-size:17px;color:var(--accent);
+  opacity:.35;transition:opacity .2s}
+.sb:hover,.sb.on{opacity:1}
+
+/* FAVS */
+.fv{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.fc{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);
+  border-radius:20px;padding:5px 12px 5px 10px;cursor:pointer;font-size:12px;font-weight:500;transition:all .2s}
+.fc:hover{background:var(--cardh)}
+.fc.on{background:rgba(240,192,64,.15);border-color:rgba(240,192,64,.35);color:var(--accent)}
+
+/* MAIN CARD */
+.mc{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(20px);
+  border-radius:var(--r);padding:32px 36px;display:grid;grid-template-columns:1fr auto;
+  gap:24px;align-items:center;margin-bottom:18px;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 80% at 90% 50%,rgba(240,192,64,.04) 0%,transparent 70%)}
+.mloc{font-size:12px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.mtemp{font-family:'DM Serif Display',serif;font-size:88px;line-height:1;letter-spacing:-4px}
+.mtemp sup{font-size:34px;vertical-align:top;margin-top:12px;display:inline-block}
+.mdesc{font-size:17px;color:#a8c8e8;font-weight:300;margin-top:6px}
+.mmeta{display:flex;gap:24px;margin-top:18px;flex-wrap:wrap}
+.ml{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.mv{font-size:14px;font-weight:500;margin-top:2px}
+.miw img{width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(240,192,64,.25));animation:flt 4s ease-in-out infinite;display:block}
+.miw span{font-size:90px;animation:flt 4s ease-in-out infinite;display:block;line-height:1}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.lv{position:absolute;inset:0;background:rgba(10,20,35,.7);display:flex;align-items:center;
+  justify-content:center;border-radius:var(--r);font-size:13px;color:var(--dim);
+  backdrop-filter:blur(4px);gap:10px;transition:opacity .3s}
+.lv.h{opacity:0;pointer-events:none}
+.sp{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* INFO GRID */
+.ig{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.ic{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:all .2s}
+.ic:hover{background:var(--cardh);transform:translateY(-2px)}
+.iico{font-size:20px;margin-bottom:8px}
+.ilbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.ival{font-size:20px;font-weight:600}
+.isub{font-size:11px;color:var(--dim);margin-top:3px}
+.pb{height:3px;background:rgba(255,255,255,.08);border-radius:3px;margin-top:6px}
+.pf{height:100%;border-radius:3px;background:linear-gradient(90deg,#4ab4f0,#7bd4ff);transition:width .5s}
+.uvd{display:flex;gap:3px;margin-top:6px}
+
+/* TABS */
+.tb{display:flex;gap:4px;background:rgba(0,0,0,.25);padding:4px;border-radius:14px;width:fit-content;margin-bottom:18px}
+.tab{padding:8px 22px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;
+  cursor:pointer;border:none;color:var(--dim);background:transparent;transition:all .2s}
+.tab.on{background:var(--card);border:1px solid var(--border);color:var(--text)}
+
+/* HOURLY */
+.hs{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.hs::-webkit-scrollbar{display:none}
+.hc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;
+  text-align:center;min-width:70px;flex-shrink:0;transition:all .2s}
+.hc:hover{background:var(--cardh);transform:translateY(-3px)}
+.hc.now{border-color:rgba(240,192,64,.45);background:rgba(240,192,64,.07)}
+.htm{font-size:11px;color:var(--dim);margin-bottom:7px}
+.hico{font-size:24px;margin-bottom:7px}
+.htp{font-size:14px;font-weight:600}
+.hpr{font-size:10px;color:#4ab4f0;margin-top:3px}
+
+/* WEEKLY */
+.wl{display:flex;flex-direction:column;gap:8px}
+.wr{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 20px;
+  display:grid;grid-template-columns:90px 34px 1fr 80px;gap:14px;align-items:center;transition:all .2s}
+.wr:hover{background:var(--cardh)}
+.wday{font-size:14px;font-weight:500}
+.wico{font-size:22px}
+.wdsc{font-size:12px;color:var(--dim)}
+.wpr{font-size:11px;color:#4ab4f0;margin-top:2px}
+.wt{font-size:14px;text-align:right}
+.whi{font-weight:600}
+.wlo{color:var(--dim);font-size:12px;margin-left:4px}
+
+/* RADAR SECTION */
+.rv{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(16px);border-radius:var(--r);padding:26px 30px}
+.rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px}
+.rt{font-family:'DM Serif Display',serif;font-size:20px;display:flex;align-items:center;gap:10px}
+.ldot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pls 2s infinite}
+@keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+
+/* Radar tabs */
+.rtabs{display:flex;gap:6px;margin-bottom:14px}
+.rtab{padding:6px 16px;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;
+  cursor:pointer;border:1px solid var(--border);color:var(--dim);background:transparent;transition:all .2s}
+.rtab.on{background:rgba(76,255,144,.12);border-color:rgba(76,255,144,.35);color:var(--green)}
+
+/* Leaflet map */
+#radar-map{height:480px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.leaflet-container{background:#05111d}
+
+/* Time bar */
+.tbar{margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tbar-time{font-family:'DM Serif Display',serif;font-size:16px;min-width:60px}
+.tbar-btns{display:flex;gap:6px}
+.tbtn{background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:6px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.tbtn:hover{background:var(--cardh)}
+.tbtn.playing{background:rgba(76,255,144,.12);border-color:rgba(76,255,144,.35);color:var(--green)}
+.tbar-frames{display:flex;gap:3px;align-items:center;flex:1;min-width:200px}
+.frame-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .15s;flex-shrink:0}
+.frame-dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent);width:8px;height:8px}
+.frame-dot:hover{background:rgba(255,255,255,.5)}
+
+/* Legend */
+.rleg{margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.rleg-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.rleg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.rleg-dot{width:10px;height:10px;border-radius:50%}
+.rsrc{margin-top:10px;font-size:11px;color:var(--dim);display:flex;justify-content:space-between}
+.rsrc a{color:var(--dim);text-decoration:none}.rsrc a:hover{color:var(--accent)}
+
+/* MISC */
+.slbl{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.err{background:rgba(255,80,50,.08);border:1px solid rgba(255,80,50,.2);border-radius:10px;
+  padding:10px 16px;font-size:12px;color:#ff8060;margin-bottom:16px}
+.fade{animation:fi .35s ease}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.view{display:none}.view.on{display:block}
+
+@media(max-width:700px){
+  .mc{grid-template-columns:1fr;padding:22px}
+  .mtemp{font-size:68px}
+  .ig{grid-template-columns:repeat(2,1fr)}
+  .wr{grid-template-columns:72px 28px 1fr 64px}
+  .app{padding:18px 14px 60px}
+  .dw{width:100%}
+  #radar-map{height:320px}
+}
+</style>
+</head>
+<body>
+<div class="bg"><div class="orb a"></div><div class="orb b"></div><div class="cs s1"></div><div class="cs s2"></div></div>
+
+<div class="app">
+  <header>
+    <div>
+      <div class="logo">Slo<em>Vreme</em></div>
+      <div class="logo-sub">Uradni podatki ARSO</div>
+    </div>
+    <div class="clk"><div class="ct" id="ct">--:--</div><div class="cd" id="cd"></div></div>
+  </header>
+
+  <!-- DROPDOWN -->
+  <div style="margin-bottom:20px">
+    <div class="dw">
+      <button class="db" id="db" onclick="toggleDD()">
+        <span id="si">🏛️</span><span id="sl2">Ljubljana</span><span class="chev">▼</span>
+      </button>
+      <div class="dp" id="dp">
+        <div class="ds"><input type="text" id="cs" placeholder="Išči mesto..." oninput="filt()" autocomplete="off"></div>
+        <div class="dl" id="cl"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAVORITES -->
+  <div class="fv" id="fv"></div>
+
+  <!-- MAIN CARD -->
+  <div class="mc fade" id="mc">
+    <div>
+      <div class="mloc" id="mloc">LJUBLJANA</div>
+      <div class="mtemp" id="mtemp">--<sup>°C</sup></div>
+      <div class="mdesc" id="mdesc">Nalagam...</div>
+      <div class="mmeta">
+        <div><div class="ml">Občutek</div><div class="mv" id="fe">--</div></div>
+        <div><div class="ml">Vlažnost</div><div class="mv" id="hu">--</div></div>
+        <div><div class="ml">Veter</div><div class="mv" id="wi">--</div></div>
+        <div><div class="ml">Tlak</div><div class="mv" id="pr">--</div></div>
+      </div>
+    </div>
+    <div class="miw" id="miw"></div>
+    <div class="lv" id="lv"><div class="sp"></div> Nalagam...</div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="ig fade">
+    <div class="ic"><div class="iico">🌅</div><div class="ilbl">Sončni vzhod</div><div class="ival" id="sr">--:--</div><div class="isub">Zahod: <span id="ss">--:--</span></div></div>
+    <div class="ic"><div class="iico">🌡️</div><div class="ilbl">Min / Max danes</div><div class="ival" id="mm">--</div><div class="isub" id="av">--</div></div>
+    <div class="ic"><div class="iico">🌧️</div><div class="ilbl">Padavine danes</div><div class="ival" id="pp">--</div><div class="pb"><div class="pf" id="pf" style="width:0%"></div></div></div>
+    <div class="ic"><div class="iico">☀️</div><div class="ilbl">UV (ocena)</div><div class="ival" id="uv">--</div><div class="uvd" id="uvd"></div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tb">
+    <button class="tab on" onclick="sw('h',this)">⏱ Danes po urah</button>
+    <button class="tab" onclick="sw('w',this)">📅 7 dni</button>
+    <button class="tab" onclick="sw('r',this)">🛰️ Radar EU</button>
+  </div>
+
+  <!-- HOURLY -->
+  <div class="view on fade" id="vh">
+    <div class="slbl">Urna napoved</div>
+    <div class="hs" id="hs"></div>
+  </div>
+
+  <!-- WEEKLY -->
+  <div class="view fade" id="vw">
+    <div class="slbl">Tedenska napoved</div>
+    <div class="wl" id="wl"></div>
+  </div>
+
+  <!-- RADAR -->
+  <div class="view fade" id="vr">
+    <div class="rv">
+      <div class="rh">
+        <div class="rt"><div class="ldot"></div> Radarska slika padavin — Evropa</div>
+      </div>
+
+      <!-- Radar type tabs -->
+      <div class="rtabs">
+        <button class="rtab on" onclick="setLayer('radar',this)">🌧️ Padavine (radar)</button>
+        <button class="rtab" onclick="setLayer('satellite',this)">🛰️ Satelit (infrardeče)</button>
+      </div>
+
+      <!-- Leaflet map -->
+      <div id="radar-map"></div>
+
+      <!-- Time controls -->
+      <div class="tbar">
+        <div class="tbar-btns">
+          <button class="tbtn" id="play-btn" onclick="togglePlay()">▶ Play</button>
+          <button class="tbtn" onclick="stepFrame(-1)">◀</button>
+          <button class="tbtn" onclick="stepFrame(1)">▶</button>
+        </div>
+        <div class="tbar-frames" id="frame-dots"></div>
+        <div class="tbar-time" id="frame-time">--:--</div>
+      </div>
+
+      <!-- Legend -->
+      <div class="rleg">
+        <span class="rleg-title">Padavine:</span>
+        <div class="rleg-item"><div class="rleg-dot" style="background:#0000ff"></div> Rahle</div>
+        <div class="rleg-item"><div class="rleg-dot" style="background:#00b4ff"></div> Zmerne</div>
+        <div class="rleg-item"><div class="rleg-dot" style="background:#00ff00"></div> Močne</div>
+        <div class="rleg-item"><div class="rleg-dot" style="background:#ffff00"></div> Zelo močne</div>
+        <div class="rleg-item"><div class="rleg-dot" style="background:#ff0000"></div> Ekstremne</div>
+      </div>
+      <div class="rsrc">
+        <span>Vir: RainViewer · EUMETNET OPERA · posodobitev vsakih 10 min</span>
+        <a href="https://www.rainviewer.com" target="_blank">rainviewer.com ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ───────────────────────────────────────────────
+// CONFIG
+// ───────────────────────────────────────────────
+const ARSO  = 'https://vreme.arso.gov.si/api/1.0/location/?location=';
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const IBASE = 'https://vreme.arso.gov.si/uploads/meteo/style/img/icons_weather/';
+
+const CITIES=[
+  {n:'Ljubljana',r:'Osrednjeslovenska',e:'🏛️',lat:46.055,lon:14.515},
+  {n:'Maribor',r:'Podravska',e:'🏙️',lat:46.559,lon:15.638},
+  {n:'Celje',r:'Savinjska',e:'🏰',lat:46.231,lon:15.263},
+  {n:'Kranj',r:'Gorenjska',e:'⛰️',lat:46.239,lon:14.356},
+  {n:'Koper',r:'Obalno-kraška',e:'⚓',lat:45.548,lon:13.729},
+  {n:'Novo Mesto',r:'Jugovzhodna SLO',e:'🏘️',lat:45.801,lon:15.171},
+  {n:'Nova Gorica',r:'Goriška',e:'🍇',lat:45.957,lon:13.644},
+  {n:'Velenje',r:'Savinjska',e:'⚡',lat:46.359,lon:15.112},
+  {n:'Krško',r:'Posavska',e:'🌊',lat:45.959,lon:15.494},
+  {n:'Murska Sobota',r:'Pomurska',e:'🌾',lat:46.663,lon:16.166},
+  {n:'Ptuj',r:'Podravska',e:'🍷',lat:46.42,lon:15.87},
+  {n:'Slovenj Gradec',r:'Koroška',e:'🌲',lat:46.511,lon:15.08},
+  {n:'Postojna',r:'Notranjska',e:'🦇',lat:45.774,lon:14.215},
+  {n:'Trbovlje',r:'Zasavska',e:'🏭',lat:46.154,lon:15.049},
+  {n:'Sežana',r:'Kras',e:'🪨',lat:45.707,lon:13.873},
+  {n:'Jesenice',r:'Gorenjska',e:'⛷️',lat:46.436,lon:14.064},
+  {n:'Škofja Loka',r:'Gorenjska',e:'🏯',lat:46.166,lon:14.305},
+  {n:'Ravne na Koroškem',r:'Koroška',e:'🏔️',lat:46.545,lon:14.964},
+  {n:'Izola',r:'Obalno-kraška',e:'🌊',lat:45.539,lon:13.664},
+  {n:'Piran',r:'Obalno-kraška',e:'🌅',lat:45.527,lon:13.569},
+  {n:'Domžale',r:'Osrednjeslovenska',e:'🏡',lat:46.14,lon:14.594},
+  {n:'Kamnik',r:'Osrednjeslovenska',e:'🏔️',lat:46.226,lon:14.608},
+];
+
+const DAYS=['Ned','Pon','Tor','Sre','Čet','Pet','Sob'];
+const MON=['jan','feb','mar','apr','maj','jun','jul','avg','sep','okt','nov','dec'];
+
+let city='Ljubljana', favs=[], ddOpen=false, fltr='';
+try{favs=JSON.parse(localStorage.getItem('sv_f')||'["Ljubljana"]')}catch(e){favs=['Ljubljana']}
+
+// ── CLOCK ────────────────────────────────────────
+function tick(){
+  const n=new Date();
+  document.getElementById('ct').textContent=`${p2(n.getHours())}:${p2(n.getMinutes())}`;
+  document.getElementById('cd').textContent=`${DAYS[n.getDay()]}, ${n.getDate()}. ${MON[n.getMonth()]} ${n.getFullYear()}`;
+}
+function p2(x){return String(x).padStart(2,'0')}
+setInterval(tick,1000);tick();
+
+// ── DROPDOWN ─────────────────────────────────────
+function toggleDD(){
+  ddOpen=!ddOpen;
+  document.getElementById('db').classList.toggle('open',ddOpen);
+  document.getElementById('dp').classList.toggle('open',ddOpen);
+  if(ddOpen){setTimeout(()=>document.getElementById('cs').focus(),80);renderCL();}
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.dw'))closeDD();});
+function closeDD(){ddOpen=false;document.getElementById('db').classList.remove('open');document.getElementById('dp').classList.remove('open');}
+function filt(){fltr=document.getElementById('cs').value.toLowerCase();renderCL();}
+
+function renderCL(){
+  const el=document.getElementById('cl');
+  const f=CITIES.filter(c=>c.n.toLowerCase().includes(fltr)||c.r.toLowerCase().includes(fltr));
+  el.innerHTML=f.map(c=>`
+    <div class="di ${c.n===city?'on':''}" onclick="selCity('${esc(c.n)}')">
+      <span style="font-size:16px">${c.e}</span>
+      <div style="flex:1"><div style="font-size:14px">${c.n}</div><div class="ir">${c.r}</div></div>
+      <button class="sb ${favs.includes(c.n)?'on':''}" onclick="togFav(event,'${esc(c.n)}')">${favs.includes(c.n)?'★':'☆'}</button>
+    </div>`).join('');
+}
+
+function selCity(n){
+  city=n; const c=CITIES.find(x=>x.n===n);
+  document.getElementById('sl2').textContent=n;
+  document.getElementById('si').textContent=c?c.e:'🏙️';
+  closeDD(); fltr=''; document.getElementById('cs').value='';
+  renderFavs(); fetchW(n);
+  if(radarMap){
+    const cc=CITIES.find(x=>x.n===n);
+    if(cc) radarMap.flyTo([cc.lat,cc.lon],8,{duration:1.5});
+  }
+}
+
+function esc(s){return s.replace(/'/g,"\\'")}
+
+// ── FAVORITES ────────────────────────────────────
+function togFav(e,n){
+  e.stopPropagation();
+  favs=favs.includes(n)?favs.filter(f=>f!==n):[...favs,n];
+  try{localStorage.setItem('sv_f',JSON.stringify(favs))}catch(e){}
+  renderCL(); renderFavs();
+}
+function renderFavs(){
+  const el=document.getElementById('fv');
+  el.innerHTML=favs.map(n=>{
+    const c=CITIES.find(x=>x.n===n);
+    return`<div class="fc ${n===city?'on':''}" onclick="selCity('${esc(n)}')">${c?c.e:'🏙️'} ${n}</div>`;
+  }).join('');
+}
+
+// ── ARSO FETCH ───────────────────────────────────
+async function fetchW(name){
+  setLd(true); clearErr();
+  const url=ARSO+encodeURIComponent(name);
+  let data=null;
+  for(const u of [url, PROXY+encodeURIComponent(url)]){
+    try{
+      const r=await fetch(u,{signal:AbortSignal.timeout(9000)});
+      if(!r.ok) continue;
+      data=await r.json(); break;
+    }catch(e){}
+  }
+  setLd(false);
+  if(!data){showErr('Ne morem naložiti podatkov ARSO. Preveri internetno povezavo.');return;}
+  render(data,name);
+}
+function setLd(on){document.getElementById('lv').classList.toggle('h',!on)}
+function showErr(m){clearErr();const e=document.createElement('div');e.id='errmsg';e.className='err';e.textContent='⚠️ '+m;document.querySelector('.app').insertBefore(e,document.getElementById('mc'));}
+function clearErr(){const e=document.getElementById('errmsg');if(e)e.remove();}
+
+// ── ICONS ────────────────────────────────────────
+function ie(c){
+  if(!c)return'🌤️';
+  if(c.includes('sunny')||c.includes('clear'))return'☀️';
+  if(c.includes('partCloudy'))return'⛅';
+  if(c.includes('prevCloudy')||c.includes('overcast'))return'☁️';
+  if(c.includes('snow'))return'❄️';
+  if(c.includes('storm')||c.includes('thunder'))return'⛈️';
+  if(c.includes('rain')||c.includes('shower'))return'🌧️';
+  if(c.includes('fog')||c.includes('mist'))return'🌫️';
+  return'🌤️';
+}
+function iconImg(code,w,h,cls){
+  if(!code)return`<span style="font-size:${w*.8}px;line-height:1">${ie(code)}</span>`;
+  return`<img src="${IBASE}${code}.svg" width="${w}" height="${h}" class="${cls||''}" style="display:block"
+    onerror="this.outerHTML='<span style=font-size:${w*.7}px;line-height:1>${ie(code)}</span>'">`;
+}
+function fmtT(utc,off){
+  if(!utc)return'--:--';
+  try{const d=new Date(utc),s=off[0]==='+'?1:-1,p=off.slice(1).split(':'),om=s*(+p[0]*60+ +p[1]),l=new Date(d.getTime()+om*60000);return`${p2(l.getUTCHours())}:${p2(l.getUTCMinutes())}`;}
+  catch(e){return'--:--'}
+}
+
+// ── RENDER WEATHER ───────────────────────────────
+function render(data,name){
+  const feat=data?.forecast3h?.features?.[0]?.properties;
+  if(!feat){showErr('Ni podatkov za to lokacijo.');return;}
+  const today=feat.days?.[0]; if(!today)return;
+  const off=today.UTCoffset||'+01:00', tl=today.timeline||[], now=new Date();
+  let slot=tl[0];
+  for(const s of tl){if(new Date(s.valid)<=now)slot=s;else break;}
+
+  document.getElementById('mloc').textContent=name.toUpperCase();
+  document.getElementById('mtemp').innerHTML=`${slot?.t??'--'}<sup>°C</sup>`;
+  document.getElementById('mdesc').textContent=slot?.clouds_shortText||slot?.wwsyn_shortText||'';
+
+  const t=parseFloat(slot?.t),ff=parseFloat(slot?.ff_val);
+  const wc=(!isNaN(t)&&!isNaN(ff)&&ff>4.8)?Math.round(13.12+0.6215*t-11.37*Math.pow(ff,.16)+0.3965*t*Math.pow(ff,.16)):t;
+  document.getElementById('fe').textContent=isNaN(wc)?'--':`${Math.round(wc)}°C`;
+  document.getElementById('hu').textContent=slot?.rh?`${slot.rh}%`:'--';
+  document.getElementById('wi').textContent=slot?.ff_shortText||(isNaN(ff)?'--':`${ff} m/s`);
+  document.getElementById('pr').textContent=slot?.msl?`${slot.msl} hPa`:'--';
+
+  const ic=slot?.clouds_icon_wwsyn_icon;
+  document.getElementById('miw').innerHTML=ic
+    ?`<img src="${IBASE}${ic}.svg" style="width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(240,192,64,.25));animation:flt 4s ease-in-out infinite;display:block"
+       onerror="this.outerHTML='<span style=font-size:90px;animation:flt 4s ease-in-out infinite;display:block;line-height:1>${ie(ic)}</span>'">`
+    :`<span style="font-size:90px;animation:flt 4s ease-in-out infinite;display:block;line-height:1">${ie(ic)}</span>`;
+
+  document.getElementById('sr').textContent=fmtT(today.sunrise,off);
+  document.getElementById('ss').textContent=fmtT(today.sunset,off);
+  const temps=tl.map(s=>parseFloat(s.t)).filter(n=>!isNaN(n));
+  const mn=temps.length?Math.min(...temps):null,mx=temps.length?Math.max(...temps):null;
+  document.getElementById('mm').textContent=mn!=null?`${mn}° / ${mx}°`:'--';
+  document.getElementById('av').textContent=mn!=null?`Povprečje: ${Math.round((mn+mx)/2)}°C`:'';
+  const tp=tl.reduce((s,x)=>s+(parseFloat(x.tp_acc)||0),0),tpr=Math.round(tp*10)/10;
+  document.getElementById('pp').textContent=`${tpr} mm`;
+  document.getElementById('pf').style.width=`${Math.min(100,tpr*8)}%`;
+  const cl=slot?.clouds_shortText||'';
+  const uvv=cl.includes('jasno')?5:cl.includes('pretežno oblačno')||cl.includes('oblačno')?2:3;
+  document.getElementById('uv').textContent=uvv;
+  const uc=['#4cff90','#90e040','#d4d000','#f09000','#e04000','#c00000','#800080','#800080','#800080','#800080'];
+  document.getElementById('uvd').innerHTML=uc.map((c,i)=>`<div style="flex:1;height:4px;border-radius:2px;background:${i<uvv?c:'rgba(255,255,255,.1)'}"></div>`).join('');
+
+  renderH(data,off); renderW(data,off);
+}
+
+function renderH(data,off){
+  const feat=data?.forecast3h?.features?.[0]?.properties;
+  const el=document.getElementById('hs');
+  const slots=[];
+  for(const d of feat?.days||[]){for(const s of d.timeline||[])slots.push({...s,_o:d.UTCoffset||off});if(slots.length>=28)break;}
+  const now=new Date();
+  const fut=slots.filter(s=>{try{return new Date(s.valid)>=new Date(now-3600000)}catch{return true}}).slice(0,20);
+  if(!fut.length){el.innerHTML='<div style="color:var(--dim);padding:20px">Ni podatkov.</div>';return;}
+  el.innerHTML=fut.map((s,i)=>{
+    const lbl=i===0?'Zdaj':fmtT(s.valid,s._o);
+    const pr=parseFloat(s.tp_acc)||0,ic=s.clouds_icon_wwsyn_icon;
+    return`<div class="hc ${i===0?'now':''}">
+      <div class="htm">${lbl}</div>
+      ${ic?`<img src="${IBASE}${ic}.svg" width="32" height="32" style="margin:0 auto 7px;display:block" onerror="this.outerHTML='<div class=hico>${ie(ic)}</div>'">`:`<div class="hico">${ie(ic)}</div>`}
+      <div class="htp">${s.t??'--'}°</div>
+      ${pr>0?`<div class="hpr">💧${pr}mm</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderW(data,off){
+  const feat=data?.forecast3h?.features?.[0]?.properties;
+  const el=document.getElementById('wl');
+  const days=(feat?.days||[]).slice(0,7);
+  el.innerHTML=days.map((day,i)=>{
+    const tl=day.timeline||[];
+    const temps=tl.map(s=>parseFloat(s.t)).filter(n=>!isNaN(n));
+    const mn=temps.length?Math.min(...temps):'--',mx=temps.length?Math.max(...temps):'--';
+    const tp=tl.reduce((s,x)=>s+(parseFloat(x.tp_acc)||0),0),tpr=Math.round(tp*10)/10;
+    const mid=tl.find(s=>parseInt(s.time)>=720)||tl[Math.floor(tl.length/2)]||tl[0];
+    const ic=mid?.clouds_icon_wwsyn_icon, d=new Date(day.date);
+    const dn=i===0?'Danes':i===1?'Jutri':DAYS[d.getDay()];
+    return`<div class="wr">
+      <div class="wday">${dn}</div>
+      <div>${ic?`<img src="${IBASE}${ic}.svg" width="30" height="30" style="display:block" onerror="this.outerHTML='<div class=wico>${ie(ic)}</div>'">`:`<div class="wico">${ie(ic)}</div>`}</div>
+      <div><div class="wdsc">${mid?.clouds_shortText||''}</div>${tpr>0?`<div class="wpr">💧 ${tpr} mm</div>`:''}</div>
+      <div class="wt"><span class="whi">${mx}°</span><span class="wlo">${mn}°</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── TABS ─────────────────────────────────────────
+function sw(name,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('v'+name).classList.add('on','fade');
+  btn.classList.add('on');
+  if(name==='r') initRadar();
+}
+
+// ═══════════════════════════════════════════════════════
+// RAINVIEWER RADAR — Leaflet map
+// ═══════════════════════════════════════════════════════
+let radarMap=null, radarLayer=null, radarFrames=[], animPos=0, animTimer=null, playing=false, currentLayerType='radar';
+
+function initRadar(){
+  if(radarMap){return;}
+
+  // Init Leaflet map centered on Slovenia / Central Europe
+  radarMap=L.map('radar-map',{zoomControl:true,attributionControl:true}).setView([46.1,14.5],6);
+
+  // Dark tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://openstreetmap.org">OSM</a>',
+    maxZoom:18, subdomains:'abcd'
+  }).addTo(radarMap);
+
+  fetchRainViewer();
+  // Refresh data every 5 min
+  setInterval(fetchRainViewer, 5*60*1000);
+}
+
+async function fetchRainViewer(){
+  try{
+    const r=await fetch('https://api.rainviewer.com/public/weather-maps.json',{signal:AbortSignal.timeout(8000)});
+    const data=await r.json();
+    processRVData(data);
+  }catch(e){console.warn('RainViewer error:',e);}
+}
+
+function processRVData(data){
+  // Pick frames based on layer type
+  let frames=[];
+  if(currentLayerType==='radar'){
+    frames=(data?.radar?.past||[]).map(f=>({...f,host:data.host,type:'radar'}));
+  } else {
+    frames=(data?.satellite?.infrared||[]).map(f=>({...f,host:data.host,type:'satellite'}));
+  }
+  radarFrames=frames;
+  animPos=frames.length-1; // Start at latest
+
+  renderFrameDots();
+  showFrame(animPos);
+}
+
+function showFrame(pos){
+  if(!radarFrames.length||!radarMap) return;
+  pos=Math.max(0,Math.min(pos,radarFrames.length-1));
+  animPos=pos;
+  const frame=radarFrames[pos];
+  if(!frame) return;
+
+  // Remove old layer
+  if(radarLayer) radarMap.removeLayer(radarLayer);
+
+  if(frame.type==='radar'){
+    radarLayer=L.tileLayer(
+      `${frame.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`,
+      {opacity:0.75,zIndex:10,tileSize:256}
+    ).addTo(radarMap);
+  } else {
+    radarLayer=L.tileLayer(
+      `${frame.host}${frame.path}/256/{z}/{x}/{y}/0/0_0.png`,
+      {opacity:0.65,zIndex:10,tileSize:256}
+    ).addTo(radarMap);
+  }
+
+  // Update time display
+  const d=new Date(frame.time*1000);
+  document.getElementById('frame-time').textContent=`${p2(d.getHours())}:${p2(d.getMinutes())}`;
+
+  // Update dots
+  document.querySelectorAll('.frame-dot').forEach((el,i)=>el.classList.toggle('on',i===pos));
+}
+
+function renderFrameDots(){
+  const el=document.getElementById('frame-dots');
+  el.innerHTML=radarFrames.map((_,i)=>`<div class="frame-dot ${i===animPos?'on':''}" onclick="showFrame(${i})"></div>`).join('');
+}
+
+function togglePlay(){
+  playing=!playing;
+  const btn=document.getElementById('play-btn');
+  if(playing){
+    btn.textContent='⏸ Pause'; btn.classList.add('playing');
+    animTimer=setInterval(()=>{
+      animPos=(animPos+1)%radarFrames.length;
+      showFrame(animPos);
+    },600);
+  } else {
+    btn.textContent='▶ Play'; btn.classList.remove('playing');
+    clearInterval(animTimer);
+  }
+}
+
+function stepFrame(dir){
+  if(playing){togglePlay();}
+  animPos=(animPos+dir+radarFrames.length)%radarFrames.length;
+  showFrame(animPos);
+}
+
+function setLayer(type,btn){
+  currentLayerType=type;
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if(radarMap) fetchRainViewer();
+}
+
+// ── INIT ─────────────────────────────────────────
+renderCL(); renderFavs(); fetchW(city);
+setInterval(()=>fetchW(city),10*60*1000);
+</script>
+</body>
+</html>
