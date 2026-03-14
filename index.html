@@ -6,6 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>SloVreme</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e1628" id="meta-theme">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
@@ -799,6 +802,8 @@ function applyTheme(t) {
   theme = t;
   document.documentElement.setAttribute('data-theme', t);
   $('theme-btn').textContent = t === 'dark' ? '🌙' : '☀️';
+  const mc = document.getElementById('meta-theme');
+  if (mc) mc.content = t === 'dark' ? '#0e1628' : '#eef2ff';
   localStorage.setItem('sv_theme', t);
   if (radarMap) setTimeout(() => radarMap.invalidateSize(), 50);
 }
@@ -1254,6 +1259,11 @@ waitForLeafletAndInit();
 
 setInterval(() => fetchWeather(city), 10*60*1000);
 setInterval(updateDate, 60*1000);
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 <!-- Leaflet na dnu — zagotovljeno naložen preden ga kličemo -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

@@ -1,0 +1,25 @@
+{
+  "name": "SloVreme",
+  "short_name": "SloVreme",
+  "description": "Slovensko vreme — uradni podatki ARSO",
+  "start_url": "/vreme_bap-tist/",
+  "scope": "/vreme_bap-tist/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1628",
+  "theme_color": "#0e1628",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
