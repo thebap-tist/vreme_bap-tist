@@ -8,7 +8,7 @@
 <title>SloVreme</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
 /* ═══════════════════════════════════════
    RESET & BASE
@@ -1242,11 +1242,20 @@ function stepFrame(dir) {
 renderDDList(); renderFavs(); updateDate();
 fetchWeather(city);
 
-// Radar: direkten setTimeout, ne window.onload (ta event je že minil)
-setTimeout(initRadar, 800);
+// Radar: počakaj da Leaflet (L) zagotovo obstaja
+function waitForLeafletAndInit() {
+  if (typeof L !== 'undefined') {
+    setTimeout(initRadar, 300);
+  } else {
+    setTimeout(waitForLeafletAndInit, 100);
+  }
+}
+waitForLeafletAndInit();
 
 setInterval(() => fetchWeather(city), 10*60*1000);
 setInterval(updateDate, 60*1000);
 </script>
+<!-- Leaflet na dnu — zagotovljeno naložen preden ga kličemo -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
