@@ -887,15 +887,23 @@ async function fetchWeather(name) {
   setLoading(false);
 }
 
+// fetchWithTimeout — deluje v vseh brskalnikih (ne AbortSignal.timeout)
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .finally(() => clearTimeout(tid));
+}
+
 async function tryARSO(name) {
   const url = ARSO_API + encodeURIComponent(name);
   for (const pf of PROXIES) {
     try {
-      const r = await fetch(pf(url), { signal: AbortSignal.timeout(6000) });
+      const r = await fetchWithTimeout(pf(url), 6000);
       if (!r.ok) continue;
       const d = await r.json();
       if (d?.forecast3h?.features?.length) return d;
-    } catch(e) {}
+    } catch(e) { /* probaj naslednji proxy */ }
   }
   return null;
 }
@@ -907,7 +915,7 @@ async function tryOM(lat, lon) {
       `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation` +
       `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,uv_index_max` +
       `&timezone=Europe%2FBerlin&forecast_days=7`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const r = await fetchWithTimeout(url, 8000);
     return r.ok ? await r.json() : null;
   } catch(e) { return null; }
 }
@@ -1144,13 +1152,14 @@ function initRadar() {
     attribution: '&copy; CARTO &copy; OSM', maxZoom: 18, subdomains: 'abcd'
   }).addTo(radarMap);
   L.control.zoom({ position: 'bottomright' }).addTo(radarMap);
-  fetchRV();
+  // Invalidate size after render so tiles load correctly
+  setTimeout(() => { radarMap.invalidateSize(); fetchRV(); }, 200);
   setInterval(fetchRV, 5*60*1000);
 }
 
 async function fetchRV() {
   try {
-    const r = await fetch('https://api.rainviewer.com/public/weather-maps.json', { signal: AbortSignal.timeout(8000) });
+    const r = await fetchWithTimeout('https://api.rainviewer.com/public/weather-maps.json', 8000);
     processRV(await r.json());
   } catch(e) { console.warn('RainViewer:', e); }
 }
@@ -1207,8 +1216,19 @@ function stepFrame(dir) {
 // INIT
 // ═══════════════════════════════════════════════
 renderDDList(); renderFavs(); updateDate();
+
+// Najprej naložimo Open-Meteo vzporedno (hiter fallback)
+const cityObj = CITIES.find(x => x.n === city);
+if (cityObj) tryOM(cityObj.lat, cityObj.lon).then(om => { if (om) { setBadge('om'); renderOM(om, city); setLoading(false); } });
+
+// Potem poskusi ARSO (zamenja podatke če uspe)
 fetchWeather(city);
-setTimeout(initRadar, 400);
+
+// Radar: počakaj da je DOM popolnoma narejen in div ima dimenzije
+window.addEventListener('load', () => {
+  setTimeout(initRadar, 600);
+});
+
 setInterval(() => fetchWeather(city), 10*60*1000);
 setInterval(updateDate, 60*1000);
 </script>
