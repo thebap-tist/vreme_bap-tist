@@ -699,7 +699,7 @@ html, body {
             </div>
             <div class="radar-time-badge" id="r-time-badge">--:--</div>
           </div>
-          <div id="radar-map"></div>
+          <div id="radar-map" style="height:240px;width:100%;background:#05111d;"></div>
           <div class="radar-controls">
             <button class="r-btn" id="play-btn" onclick="togglePlay()">▶ Play</button>
             <button class="r-btn" onclick="stepFrame(-1)">◀</button>
@@ -1158,6 +1158,12 @@ let radarMap=null, radarLayer=null, radarFrames=[], animPos=0, animTimer=null, p
 
 function initRadar() {
   if (radarMap) { radarMap.invalidateSize(); return; }
+  // Preveri da je div viden in ima dimenzije
+  const mapEl = $('radar-map');
+  if (!mapEl || mapEl.offsetHeight === 0) {
+    setTimeout(initRadar, 500); // div še nima dimenzij, poskusi znova
+    return;
+  }
   const c = CITIES.find(x => x.n === city) || CITIES[0];
   radarMap = L.map('radar-map', { zoomControl: false, attributionControl: true })
               .setView([c.lat, c.lon], 7);
@@ -1165,8 +1171,10 @@ function initRadar() {
     attribution: '&copy; CARTO &copy; OSM', maxZoom: 18, subdomains: 'abcd'
   }).addTo(radarMap);
   L.control.zoom({ position: 'bottomright' }).addTo(radarMap);
-  // Invalidate size after render so tiles load correctly
-  setTimeout(() => { radarMap.invalidateSize(); fetchRV(); }, 200);
+  setTimeout(() => {
+    radarMap.invalidateSize();
+    fetchRV();
+  }, 300);
   setInterval(fetchRV, 5*60*1000);
 }
 
@@ -1231,9 +1239,8 @@ function stepFrame(dir) {
 renderDDList(); renderFavs(); updateDate();
 fetchWeather(city);
 
-window.addEventListener('load', () => {
-  setTimeout(initRadar, 600);
-});
+// Radar: direkten setTimeout, ne window.onload (ta event je že minil)
+setTimeout(initRadar, 800);
 
 setInterval(() => fetchWeather(city), 10*60*1000);
 setInterval(updateDate, 60*1000);
